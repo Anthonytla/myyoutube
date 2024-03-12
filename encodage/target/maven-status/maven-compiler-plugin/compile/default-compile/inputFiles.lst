@@ -1,0 +1,6 @@
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/MyApiVerticle.java
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/resource/VideoResource.java
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/entity/VideoFormat.java
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/App.java
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/service/VideoService.java
+/home/laanthony/myYoutube/encodage/src/main/java/io/vertx/example/entity/VideoEncoder.java

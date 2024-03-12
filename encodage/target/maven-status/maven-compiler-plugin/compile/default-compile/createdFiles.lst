@@ -1,0 +1,6 @@
+io/vertx/example/MyApiVerticle.class
+io/vertx/example/service/VideoService.class
+io/vertx/example/resource/VideoResource.class
+io/vertx/example/entity/VideoEncoder.class
+io/vertx/example/entity/VideoFormat.class
+io/vertx/example/App.class

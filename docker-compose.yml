@@ -1,0 +1,178 @@
+version: "2.2"
+
+services:
+    
+    db:
+        image: mysql
+        command: --default-authentication-plugin=mysql_native_password
+        restart: always
+        environment:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: myapi
+        ports: 
+            - 3306:3306
+        volumes:
+          - ./api/db-data/database.sql:/docker-entrypoint-initdb.d/database.sql
+        networks:
+        - elastic
+      
+    myapi:
+        build: ./api
+        depends_on: 
+            - db
+        ports:
+        - 5000:5000
+        command: bash -c "python3 -u api.py"
+        volumes:
+        - storage:/static 
+        networks:
+        - elastic  
+            
+
+    site:
+        build: ./site
+        depends_on:
+            - db
+        ports:
+            - 3000:3000 
+        command: npm run dev
+        networks:
+        - elastic
+
+    encodage:
+        build: ./encodage
+        depends_on:
+            - myapi
+        restart: on-failure
+        ports:
+            - 8080:8080
+        command:  sh -c "mvn clean compile vertx:run"
+        volumes:
+            - storage:/app/static/
+        networks:
+            - elastic
+
+    es01:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1
+        container_name: es01
+        environment:
+        - node.name=es01
+        - cluster.name=es-docker-cluster
+        - discovery.seed_hosts=es02,es03
+        - cluster.initial_master_nodes=es01,es02,es03
+        - bootstrap.memory_lock=true
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+        - data01:/usr/share/elasticsearch/data
+        ports:
+        - 9200:9200
+        networks:
+        - elastic
+    es02:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1
+        container_name: es02
+        environment:
+        - node.name=es02
+        - cluster.name=es-docker-cluster
+        - discovery.seed_hosts=es01,es03
+        - cluster.initial_master_nodes=es01,es02,es03
+        - bootstrap.memory_lock=true
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+        - data02:/usr/share/elasticsearch/data
+        networks:
+        - elastic
+    es03:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1
+        container_name: es03
+        environment:
+        - node.name=es03
+        - cluster.name=es-docker-cluster
+        - discovery.seed_hosts=es01,es02
+        - cluster.initial_master_nodes=es01,es02,es03
+        - bootstrap.memory_lock=true
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+        - data03:/usr/share/elasticsearch/data
+        networks:
+        - elastic
+    # mailserver:
+    #     image: docker.io/mailserver/docker-mailserver:latest
+    #     #build: ./mailserver
+    #     container_name: mailserver
+    #     # If the FQDN for your mail-server is only two labels (eg: example.com),
+    #     # you can assign this entirely to `hostname` and remove `domainname`.
+    #     hostname: mail
+    #     domainname: example.com
+    #     env_file: mailserver.env
+    #     # More information about the mail-server ports:
+    #     # https://docker-mailserver.github.io/docker-mailserver/edge/config/security/understanding-the-ports/
+    #     # To avoid conflicts with yaml base-60 float, DO NOT remove the quotation marks.
+    #     ports:
+    #     - "8686:8686"    # SMTP  (explicit TLS => STARTTLS)
+    #     - "143:143"  # IMAP4 (explicit TLS => STARTTLS)
+    #     - "465:465"  # ESMTP (implicit TLS)
+    #     - "587:587"  # ESMTP (explicit TLS => STARTTLS)
+    #     - "993:993"  # IMAP4 (implicit TLS)
+    #     volumes:
+    #     - ./docker-data/dms/mail-data/:/var/mail/
+    #     - ./docker-data/dms/mail-state/:/var/mail-state/
+    #     - ./docker-data/dms/mail-logs/:/var/log/mail/
+    #     - ./docker-data/dms/config/:/tmp/docker-mailserver/
+    #     - /etc/localtime:/etc/localtime:ro
+    #     restart: always
+    #     stop_grace_period: 1m
+    #     cap_add:
+    #     - NET_ADMIN
+    #     - SYS_PTRACE
+    #     command: node index.js
+    mailing:
+        build: ./mailing
+        # depends_on:
+        #     - mailserver
+        ports:
+            - "8082:8082"
+        command: bash -c "/etc/init.d/postfix restart && node index.js"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        networks:
+        - elastic
+    # dkr:
+    #     image: docker
+    #     privileged: true
+    #     working_dir: "/dkr"
+    #     volumes:
+    #     - ".:/dkr"
+    #     - /var/run/docker.sock:/var/run/docker.sock
+    #     - ./docker-data/dms/mail-data/:/var/mail/
+    #     - ./docker-data/dms/mail-state/:/var/mail-state/
+    #     - ./docker-data/dms/mail-logs/:/var/log/mail/
+    #     - ./docker-data/dms/config/:/tmp/docker-mailserver/
+    #     - /etc/localtime:/etc/localtime:ro
+    #     command: sh -c "apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing mailutils && tail -f /dev/null"
+
+        
+networks:
+    elastic:
+        driver: bridge
+volumes:
+    db-data:
+    storage:
+    data01:
+        driver: local
+    data02:
+        driver: local
+    data03:
+        driver: local
